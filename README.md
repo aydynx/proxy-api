@@ -46,3 +46,6 @@ returns a single checked http proxy
 
 `https://workername.namespace.workers.dev/check?type=socks4`  
 if a list of proxies seperated by newline was sent as the body of the post request, it returns a list of all the valid proxies in your list
+
+`https://workername.namespace.workers.dev/scrape`
+scrapes ALL types of proxy  
