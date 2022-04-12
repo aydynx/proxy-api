@@ -18,8 +18,17 @@ async function scrape(types) {
   let proxies;
   for (let type of types) {
     proxies += await (await fetch(`https://api.proxyscrape.com/v2/?request=getproxies&protocol=${type}&timeout=10000&country=all`)).text();
+    proxies += await (await fetch(`https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/${type}.txt`)).text();
+    proxies += await (await fetch(`https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/${type}.txt`)).text();
+    proxies += await (await fetch(`https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-${type}.txt`)).text();
+    proxies += await (await fetch(`https://raw.githubusercontent.com/mmpx12/proxy-list/master/${type}.txt`)).text();
+    if (type === "http") {
+      proxies += await (await fetch(`https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list.txt`)).text();
+      proxies += await (await fetch(`https://sunny9577.github.io/proxy-scraper/proxies.txt`)).text();
+    }
   }
-  return sanitize(proxies);
+  proxies = sanitize(proxies);
+  return proxies;
 }
 
 async function check(proxies, types) {
@@ -56,17 +65,39 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   const { pathname } = url;
   const params = new URLSearchParams(url.search);
-  const types = params.getAll("type");
 
-  for (let type of types) {
-    if (type !== "http" || type !== "socks4" || type !== "socks5") {
-      return new Response("invalid proxy type", { status: 500 });
+  let types = params.getAll("type");
+  let limit = params.get("limit");
+  const key = params.get("key");
+
+  const keys = [];
+
+  if (keys.length > 0) {
+    if (!keys.includes(key)) {
+      return new Response("invalid key", { status: 403 });
     }
   }
 
+  if (types.length == 0) {
+    types = ["http", "socks4", "socks5"];
+  }
+
+  for (let type of types) {
+    if (!types.includes(type)) {
+      return new Response("invalid proxy type", { status: 400 });
+    }
+  }
+
+  if (limit && !Number.isInteger(parseInt(limit))) {
+    return new Response("invalid limit", { status: 400 });
+  }
+
   if (pathname.startsWith("/scrape")) {
-    let text = await scrape(types);
-    return new Response(text, {
+    let proxies = await scrape(types, limit);
+    if (limit > 0) {
+      proxies = proxies.splice(0, limit);
+    }
+    return new Response(proxies.join("\n"), {
       headers: {
         "Content-Type": "text/plain",
       },
@@ -77,6 +108,9 @@ async function handleRequest(request) {
     let body = await request.text();
     let proxies = sanitize(body);
     let valid = await check(proxies, types);
+    if (limit > 0) {
+      valid = valid.splice(0, limit);
+    }
     return new Response(valid.join("\n"), {
       headers: {
         "Content-Type": "text/plain",
@@ -87,6 +121,9 @@ async function handleRequest(request) {
   if (pathname.startsWith("/aio")) {
     let proxies = await scrape(types);
     let valid = await check(proxies, types);
+    if (limit > 0) {
+      valid = valid.splice(0, limit);
+    }
     return new Response(valid.join("\n"), {
       headers: {
         "Content-Type": "text/plain",
